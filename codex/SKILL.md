@@ -303,7 +303,7 @@ Both transports use the same `--text-file` message format and bilingual requirem
 
 Inspect the helper's JSON `status`:
 - `sent` → note it in the user-facing report and continue.
-- `skipped` / `failed` → surface the delivery problem to the user, then continue babysitting. Do NOT silently swallow a notification failure, but do NOT treat it as a hard blocker unless the user asked for guaranteed delivery.
+- `skipped` / `failed` → surface the delivery problem AND the `setup_hint` field (if present) to the user. The hint contains the exact env vars and setup URL. Show it **once per session** on the first failure — don't repeat on every poll. Do NOT treat notification failure as a hard blocker unless the user asked for guaranteed delivery.
 
 ### Auto-replying to bot reviewers (no user approval needed)
 

@@ -32,6 +32,19 @@ DEFAULT_OPENCLAW_TARGET = "079458"
 
 TIMEOUT_SECONDS = 60
 
+SETUP_HINT_WEBHOOK = (
+    "To enable DingTalk notifications, set env vars:\n"
+    "  export BABYSIT_PR_DINGTALK_WEBHOOK_TOKEN=\"your_access_token\"\n"
+    "  export BABYSIT_PR_DINGTALK_WEBHOOK_SECRET=\"SECxxx\"  # optional\n"
+    "See https://github.com/doudouOUC/babysit-pr#dingtalk-notifications"
+)
+SETUP_HINT_OPENCLAW = (
+    "To enable DingTalk via OpenClaw, install openclaw CLI and configure the dingtalk-connector channel.\n"
+    "Or use the zero-dependency webhook robot instead:\n"
+    "  export BABYSIT_PR_DINGTALK_WEBHOOK_TOKEN=\"your_access_token\"\n"
+    "See https://github.com/doudouOUC/babysit-pr#dingtalk-notifications"
+)
+
 
 def build_message(title, text):
     return f"{title}\n\n{text}"
@@ -86,6 +99,7 @@ def send_webhook_notification(
             "status": "skipped",
             "transport": "webhook",
             "reason": "BABYSIT_PR_DINGTALK_WEBHOOK_TOKEN not set",
+            "setup_hint": SETUP_HINT_WEBHOOK,
         }
 
     url = f"{WEBHOOK_URL_BASE}?access_token={urllib.parse.quote(token, safe='')}"
@@ -172,6 +186,7 @@ def send_openclaw_notification(
             "status": "skipped",
             "transport": "openclaw",
             "reason": "missing OpenClaw binary, channel, or target",
+            "setup_hint": SETUP_HINT_OPENCLAW,
         }
 
     cmd = [
@@ -181,13 +196,16 @@ def send_openclaw_notification(
     ]
     code, stdout, stderr = command_runner(cmd, timeout_seconds)
     if code != 0:
-        return {
+        result = {
             "status": "failed",
             "transport": "openclaw",
             "exit_code": code,
             "stderr": stderr.strip(),
             "stdout": stdout.strip(),
         }
+        if code == 127:
+            result["setup_hint"] = SETUP_HINT_OPENCLAW
+        return result
 
     parsed = parse_json_from_output(stdout)
     result = {"status": "sent", "transport": "openclaw"}
