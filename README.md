@@ -96,49 +96,79 @@ python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr 4432 --watch
 
 - **GitHub CLI** (`gh`) — authenticated via `gh auth login`
 - **Python 3.9+**
-- **OpenClaw CLI** (optional, for DingTalk notifications) — see [DingTalk setup](#dingtalk-notifications) below
+- **DingTalk notifications** (optional) — webhook robot (recommended) or OpenClaw CLI. See [DingTalk setup](#dingtalk-notifications) below.
 
 ## Configuration
 
 ### DingTalk Notifications
 
-DingTalk notifications require [OpenClaw CLI](https://openclaw.alibaba-inc.com/) as the transport layer. Setup:
+Two transport options are available. The script auto-selects based on which env vars are set.
+
+#### Option A: Webhook Robot (recommended, zero dependency)
+
+No external tools required — uses Python stdlib only.
+
+1. **Create a custom robot** in your DingTalk group:
+   - Group Settings → Smart Group Assistant → Add Robot → Custom
+   - Security: choose **Sign** (recommended) or **Custom Keywords**
+   - Copy the **Webhook URL** (contains `access_token=xxx`) and the **signing secret** (`SECxxx`)
+
+2. **Set environment variables**
+   ```bash
+   # Required: the access_token part from the webhook URL
+   export BABYSIT_PR_DINGTALK_WEBHOOK_TOKEN="your_access_token_here"
+
+   # Optional: signing secret (required if robot uses Sign security)
+   export BABYSIT_PR_DINGTALK_WEBHOOK_SECRET="SECxxx"
+   ```
+
+3. **Test**
+   ```bash
+   # Dry-run (preview without sending)
+   python3 shared/scripts/dingtalk_notify.py \
+     --title "test / 测试" --text "hello" --dry-run
+
+   # Real send
+   python3 shared/scripts/dingtalk_notify.py \
+     --title "test / 测试" --text "Setup works! / 设置成功！"
+   ```
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `BABYSIT_PR_DINGTALK_WEBHOOK_TOKEN` | Yes | DingTalk robot access_token |
+| `BABYSIT_PR_DINGTALK_WEBHOOK_SECRET` | No | HMAC-SHA256 signing secret (`SECxxx`) |
+
+> **Rate limit**: DingTalk custom robots allow 20 messages/minute. The skill's "at most one notification per event type per poll cycle" stays within this.
+
+#### Option B: OpenClaw CLI (internal users)
+
+For organizations with [OpenClaw](https://openclaw.alibaba-inc.com/) infrastructure.
 
 1. **Install OpenClaw CLI**
    ```bash
-   # Follow your org's OpenClaw installation guide
    openclaw --version   # verify installation
    ```
 
-2. **Verify the `dingtalk-connector` channel is available**
+2. **Verify channel**
    ```bash
    openclaw channel list   # should show dingtalk-connector
    ```
 
-3. **Find your DingTalk target ID**
-   - For personal messages: your employee ID (e.g. `079458`)
-   - For group messages: the DingTalk group conversation ID
-   ```bash
-   # Test with a dry-run
-   python3 shared/scripts/dingtalk_notify.py \
-     --title "test" --text "hello" --dry-run
-   ```
-
-4. **Send a test notification**
+3. **Test**
    ```bash
    python3 shared/scripts/dingtalk_notify.py \
-     --title "test / 测试" --text "Setup works!\n\n设置成功！"
+     --title "test / 测试" --text "hello" --dry-run
    ```
-
-If OpenClaw is not installed, the skill still works — DingTalk notifications are skipped with `status: skipped`, and all other features (polling, comment handling, CI triage) function normally.
-
-**Override defaults via environment variables:**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BABYSIT_PR_DINGTALK_OPENCLAW_BIN` | `openclaw` | OpenClaw binary path |
 | `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL` | `dingtalk-connector` | DingTalk channel name |
 | `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET` | `079458` | DingTalk user/group ID |
+
+#### No DingTalk?
+
+If neither webhook token nor OpenClaw is configured, the skill still works — DingTalk notifications are skipped with `status: skipped`, and all other features (polling, comment handling, CI triage) function normally.
 
 ## Testing
 

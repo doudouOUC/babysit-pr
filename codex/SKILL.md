@@ -295,7 +295,11 @@ python3 .codex/skills/babysit-pr/scripts/dingtalk_notify.py \
   --text-file /tmp/babysit-pr-msg.txt
 ```
 
-The helper sends through the locally configured OpenClaw DingTalk route (channel `dingtalk-connector`, target `079458`). Overridable via env: `BABYSIT_PR_DINGTALK_OPENCLAW_BIN`, `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL`, `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET`. Use `--dry-run` to preview the message without sending.
+**Transport selection**: the script auto-selects the transport based on env vars:
+- If `BABYSIT_PR_DINGTALK_WEBHOOK_TOKEN` is set → uses DingTalk webhook robot (zero dependency, recommended for open-source users). Optionally set `BABYSIT_PR_DINGTALK_WEBHOOK_SECRET` for HMAC signing.
+- Otherwise → falls back to OpenClaw CLI (channel `dingtalk-connector`, target `079458`). Overridable via `BABYSIT_PR_DINGTALK_OPENCLAW_BIN`, `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL`, `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET`.
+
+Both transports use the same `--text-file` message format and bilingual requirement. Use `--dry-run` to preview the message and active transport without sending.
 
 Inspect the helper's JSON `status`:
 - `sent` → note it in the user-facing report and continue.
