@@ -13,7 +13,7 @@ OPENCLAW_TARGET_ENV = "BABYSIT_PR_DINGTALK_OPENCLAW_TARGET"
 DEFAULT_OPENCLAW_BIN = "openclaw"
 DEFAULT_OPENCLAW_CHANNEL = "dingtalk-connector"
 DEFAULT_OPENCLAW_TARGET = "079458"
-TIMEOUT_SECONDS = 10
+TIMEOUT_SECONDS = 30
 
 
 def build_message(title, text):
@@ -32,7 +32,13 @@ def default_command_runner(cmd, timeout_seconds):
     except FileNotFoundError as err:
         return 127, "", str(err)
     except subprocess.TimeoutExpired as err:
-        return 124, err.stdout or "", err.stderr or "command timed out"
+        stdout = err.stdout or ""
+        stderr = err.stderr or "command timed out"
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        return 124, stdout, stderr
     return proc.returncode, proc.stdout, proc.stderr
 
 
