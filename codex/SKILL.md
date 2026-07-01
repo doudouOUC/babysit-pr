@@ -198,10 +198,14 @@ After the model **actually fixes something and the fix is pushed** to the PR bra
 
 Send **at most one notification per pushed fix commit**. If one commit fixes multiple review comments or CI failures, summarize them in one message.
 
+**Bilingual requirement**: every DingTalk notification MUST include both English and Chinese (中文). Write the English section first, then the Chinese section separated by a blank line. This ensures all team members can read the notification regardless of language preference.
+
 ```bash
 python3 .codex/skills/babysit-pr/scripts/dingtalk_notify.py \
-  --title "PR #<n> fix pushed" \
-  --text "Problems: <what failed>. Fixed: <what changed>. How: <approach/tests>. Rejected: <items + reasons, or none>. Decisions: <needed user decision, or none>. Commit: <sha>. <PR URL>"
+  --title "PR #<n> fix pushed / PR #<n> 修复已推送" \
+  --text "Problems: <what failed>. Fixed: <what changed>. How: <approach/tests>. Rejected: <items + reasons, or none>. Decisions: <needed user decision, or none>. Commit: <sha>. <PR URL>
+
+问题: <失败原因>。修复: <改动内容>。方式: <修复方法/测试>。拒绝: <拒绝项+原因，或无>。待决策: <需用户决定的事项，或无>。提交: <sha>。<PR URL>"
 ```
 
 The helper sends through the locally configured OpenClaw DingTalk route (channel `dingtalk-connector`, target `079458`). Overridable via env: `BABYSIT_PR_DINGTALK_OPENCLAW_BIN`, `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL`, `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET`. Use `--dry-run` to preview the message without sending.
