@@ -17,7 +17,7 @@ Both platforms share the same core behaviors:
 - **Dedup guard** — GraphQL-based check prevents duplicate replies across sessions
 - **Post-fix obligations** — push → reply threads → summary comment → resolve threads → report counts → DingTalk notify
 - **CI failure triage** — classifies PR-code-related vs infra/flake, auto-reruns flakes
-- **DingTalk notifications** — sends fix notifications via OpenClaw
+- **DingTalk notifications** — sends fix/decision/blocker notifications via webhook robot or OpenClaw
 
 ## Installation
 
@@ -70,6 +70,12 @@ babysit-pr/
 | Approval-aware suspend | Yes (suspends after first human APPROVED) | No (always active) |
 | Post-approval squash suggestion | Yes | No |
 
+## Prerequisites
+
+- **GitHub CLI** (`gh`) — authenticated via `gh auth login`
+- **Python 3.9+**
+- **DingTalk notifications** (optional) — webhook robot (recommended) or OpenClaw CLI. See [DingTalk setup](#dingtalk-notifications) below.
+
 ## Usage
 
 ### Claude Code
@@ -91,12 +97,6 @@ python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr 4432 --once
 # Continuous watch
 python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr 4432 --watch
 ```
-
-## Prerequisites
-
-- **GitHub CLI** (`gh`) — authenticated via `gh auth login`
-- **Python 3.9+**
-- **DingTalk notifications** (optional) — webhook robot (recommended) or OpenClaw CLI. See [DingTalk setup](#dingtalk-notifications) below.
 
 ## Configuration
 

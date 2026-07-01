@@ -88,7 +88,7 @@ def send_webhook_notification(
             "reason": "BABYSIT_PR_DINGTALK_WEBHOOK_TOKEN not set",
         }
 
-    url = f"{WEBHOOK_URL_BASE}?access_token={token}"
+    url = f"{WEBHOOK_URL_BASE}?access_token={urllib.parse.quote(token, safe='')}"
     secret = str(env.get(WEBHOOK_SECRET_ENV, "")).strip()
     if secret:
         timestamp_ms = int(time.time() * 1000)
@@ -109,7 +109,9 @@ def send_webhook_notification(
         pass
 
     errcode = parsed.get("errcode") if isinstance(parsed, dict) else None
-    errmsg = parsed.get("errmsg", "") if isinstance(parsed, dict) else body
+    errmsg = parsed.get("errmsg", "") if isinstance(parsed, dict) else (body or "")
+    if len(str(errmsg)) > 500:
+        errmsg = str(errmsg)[:500] + "...(truncated)"
 
     if errcode == 0:
         return {"status": "sent", "transport": "webhook"}

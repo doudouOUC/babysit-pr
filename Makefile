@@ -29,6 +29,11 @@ install-codex:
 test:
 	python3 -m unittest shared/scripts/test_dingtalk_notify.py
 	python3 -m unittest claude-code/scripts/test_poll.py
+	@if python3 -c "import pytest" 2>/dev/null; then \
+		python3 -m pytest codex/scripts/test_gh_pr_watch.py; \
+	else \
+		echo "Skipping Codex tests (pytest not installed)"; \
+	fi
 	@echo "All tests passed."
 
 clean:
