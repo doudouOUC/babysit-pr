@@ -92,17 +92,53 @@ python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr 4432 --once
 python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr 4432 --watch
 ```
 
+## Prerequisites
+
+- **GitHub CLI** (`gh`) — authenticated via `gh auth login`
+- **Python 3.9+**
+- **OpenClaw CLI** (optional, for DingTalk notifications) — see [DingTalk setup](#dingtalk-notifications) below
+
 ## Configuration
 
 ### DingTalk Notifications
 
-Override via environment variables:
+DingTalk notifications require [OpenClaw CLI](https://openclaw.alibaba-inc.com/) as the transport layer. Setup:
+
+1. **Install OpenClaw CLI**
+   ```bash
+   # Follow your org's OpenClaw installation guide
+   openclaw --version   # verify installation
+   ```
+
+2. **Verify the `dingtalk-connector` channel is available**
+   ```bash
+   openclaw channel list   # should show dingtalk-connector
+   ```
+
+3. **Find your DingTalk target ID**
+   - For personal messages: your employee ID (e.g. `079458`)
+   - For group messages: the DingTalk group conversation ID
+   ```bash
+   # Test with a dry-run
+   python3 shared/scripts/dingtalk_notify.py \
+     --title "test" --text "hello" --dry-run
+   ```
+
+4. **Send a test notification**
+   ```bash
+   python3 shared/scripts/dingtalk_notify.py \
+     --title "test / 测试" --text "Setup works!\n\n设置成功！"
+   ```
+
+If OpenClaw is not installed, the skill still works — DingTalk notifications are skipped with `status: skipped`, and all other features (polling, comment handling, CI triage) function normally.
+
+**Override defaults via environment variables:**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BABYSIT_PR_DINGTALK_OPENCLAW_BIN` | `openclaw` | OpenClaw binary path |
-| `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL` | `dingtalk-connector` | DingTalk channel |
-| `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET` | `079458` | DingTalk target |
+| `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL` | `dingtalk-connector` | DingTalk channel name |
+| `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET` | `079458` | DingTalk user/group ID |
 
 ## Testing
 
