@@ -286,27 +286,47 @@ Checklist (same as above, repeated for emphasis):
 
 ### DingTalk fix notifications
 
-After the model **actually fixes something and the fix is pushed** to the PR branch, send a DingTalk notification via the helper script. This keeps the user informed of autonomous fixes happening in background polls without forcing them to watch the terminal.
+Send a DingTalk notification to keep the user informed of autonomous activity happening in background polls without forcing them to watch the terminal.
 
 **When to send:**
-- A branch-related CI/lint/typecheck/test/build failure was fixed, committed, and pushed.
-- Actionable review feedback was fixed, pushed, and the GitHub thread resolved.
+- **Fix pushed**: a branch-related CI/lint/typecheck/test/build failure was fixed, committed, and pushed; or actionable review feedback was fixed, pushed, and the GitHub thread resolved.
+- **Decision needed (no push)**: the model encounters items classified as "uncertain" or "Decision-level suggestion" that require user input. These are NOT code pushes — they are prompts for the user to make a call. Send immediately when such items are identified, do not wait for a fix commit.
+- **Blocker / Dispute surfaced**: a reviewer submitted CHANGES_REQUESTED, raised a dispute, or flagged a critical bug that the model cannot resolve autonomously. Send so the user is aware even if they are not watching the terminal.
 
-**When NOT to send** (these are not pushed fixes):
-- Plain polling snapshots, green/ready milestones, mergeability changes.
-- Flaky reruns (`gh run rerun --failed`) — no branch change.
-- Diagnostics, classifications, or suggested replies that didn't change the branch.
+**When NOT to send** (low-value noise):
+- Plain polling snapshots with no new items, green/ready milestones, mergeability changes with no conflict.
+- Flaky reruns (`gh run rerun --failed`) — no branch change, no decision needed.
+- Nit / style comments that the model handled autonomously (agreed and fixed, or batched as non-blocking).
 
-Send **at most one notification per pushed fix commit**. If one commit fixes multiple review comments or CI failures, summarize them in one message.
+Send **at most one notification per event type per poll cycle**. If one commit fixes multiple review comments or CI failures, summarize them in one message. If multiple decision-needed items appear in one poll, batch them into one notification.
 
 **Bilingual requirement**: every DingTalk notification MUST include both English and Chinese (中文). Write the English section first, then the Chinese section separated by a blank line. This ensures all team members can read the notification regardless of language preference.
 
+**Fix pushed notification:**
 ```bash
 python3 ~/.claude/skills/babysit-pr/scripts/dingtalk_notify.py \
   --title "PR #<n> fix pushed / PR #<n> 修复已推送" \
   --text "Problems: <what failed>. Fixed: <what changed>. How: <approach/tests>. Rejected: <items + reasons, or none>. Decisions: <needed user decision, or none>. Commit: <sha>. <PR URL>
 
 问题: <失败原因>。修复: <改动内容>。方式: <修复方法/测试>。拒绝: <拒绝项+原因，或无>。待决策: <需用户决定的事项，或无>。提交: <sha>。<PR URL>"
+```
+
+**Decision needed notification (no push):**
+```bash
+python3 ~/.claude/skills/babysit-pr/scripts/dingtalk_notify.py \
+  --title "PR #<n> needs your decision / PR #<n> 需要你的决策" \
+  --text "Items needing decision: <count>. 1) <reviewer> at <file:line>: <summary of what they're asking>. 2) ... Recommended action: <what the model suggests>. <PR URL>
+
+需要决策的项: <数量>。1) <审查者> 在 <file:line>: <问题摘要>。2) ... 建议操作: <模型的建议>。<PR URL>"
+```
+
+**Blocker surfaced notification:**
+```bash
+python3 ~/.claude/skills/babysit-pr/scripts/dingtalk_notify.py \
+  --title "PR #<n> blocked / PR #<n> 被阻塞" \
+  --text "Blocker: <reviewer> submitted CHANGES_REQUESTED — <summary>. Action needed: <what must change>. <PR URL>
+
+阻塞: <审查者> 提交了 CHANGES_REQUESTED — <摘要>。需要操作: <需要改什么>。<PR URL>"
 ```
 
 The helper sends through the locally configured OpenClaw DingTalk route (channel `dingtalk-connector`, target `079458`). Overridable via env: `BABYSIT_PR_DINGTALK_OPENCLAW_BIN`, `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL`, `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET`. Use `--dry-run` to preview the message without sending.
