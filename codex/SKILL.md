@@ -199,33 +199,100 @@ Send a DingTalk notification to keep the user informed of autonomous activity ha
 
 Send **at most one notification per event type per poll cycle**. If one commit fixes multiple review comments or CI failures, summarize them in one message. If multiple decision-needed items appear in one poll, batch them into one notification.
 
-**Bilingual requirement**: every DingTalk notification MUST include both English and Chinese (中文). Write the English section first, then the Chinese section separated by a blank line. This ensures all team members can read the notification regardless of language preference.
+**Bilingual requirement**: every DingTalk notification MUST include both English and Chinese (中文). Write the English section first, then a `---` separator, then the Chinese section. This ensures all team members can read the notification regardless of language preference.
+
+**Formatting rules**: write the message body to a temp file and pass via `--text-file`. Each field MUST be on its own line. Use blank lines between sections. Numbered items each get their own line. This is critical for readability in DingTalk's message card.
 
 **Fix pushed notification:**
 ```bash
+cat > /tmp/babysit-pr-msg.txt << 'MSGEOF'
+[EN]
+Problems:
+- <what failed, one per line>
+
+Fixed:
+- <what changed, one per line>
+
+How: <approach/tests>
+Rejected: <items + reasons, or "none">
+Decisions: <needed user decision, or "none">
+Commit: <sha>
+<PR URL>
+
+---
+
+[中文]
+问题:
+- <失败原因，每条一行>
+
+修复:
+- <改动内容，每条一行>
+
+方式: <修复方法/测试>
+拒绝: <拒绝项+原因，或"无">
+待决策: <需用户决定的事项，或"无">
+提交: <sha>
+<PR URL>
+MSGEOF
 python3 .codex/skills/babysit-pr/scripts/dingtalk_notify.py \
   --title "PR #<n> fix pushed / PR #<n> 修复已推送" \
-  --text "Problems: <what failed>. Fixed: <what changed>. How: <approach/tests>. Rejected: <items + reasons, or none>. Decisions: <needed user decision, or none>. Commit: <sha>. <PR URL>
-
-问题: <失败原因>。修复: <改动内容>。方式: <修复方法/测试>。拒绝: <拒绝项+原因，或无>。待决策: <需用户决定的事项，或无>。提交: <sha>。<PR URL>"
+  --text-file /tmp/babysit-pr-msg.txt
 ```
 
 **Decision needed notification (no push):**
 ```bash
+cat > /tmp/babysit-pr-msg.txt << 'MSGEOF'
+[EN]
+Items needing decision: <count>
+
+1) <reviewer> at <file:line>:
+   <summary of what they're asking>
+
+2) <reviewer> at <file:line>:
+   <summary>
+
+Recommended action: <what the model suggests>
+<PR URL>
+
+---
+
+[中文]
+需要决策的项: <数量>
+
+1) <审查者> 在 <file:line>:
+   <问题摘要>
+
+2) <审查者> 在 <file:line>:
+   <摘要>
+
+建议操作: <模型的建议>
+<PR URL>
+MSGEOF
 python3 .codex/skills/babysit-pr/scripts/dingtalk_notify.py \
   --title "PR #<n> needs your decision / PR #<n> 需要你的决策" \
-  --text "Items needing decision: <count>. 1) <reviewer> at <file:line>: <summary of what they're asking>. 2) ... Recommended action: <what the model suggests>. <PR URL>
-
-需要决策的项: <数量>。1) <审查者> 在 <file:line>: <问题摘要>。2) ... 建议操作: <模型的建议>。<PR URL>"
+  --text-file /tmp/babysit-pr-msg.txt
 ```
 
 **Blocker surfaced notification:**
 ```bash
+cat > /tmp/babysit-pr-msg.txt << 'MSGEOF'
+[EN]
+Blocker: <reviewer> submitted CHANGES_REQUESTED
+Reason: <summary>
+Action needed: <what must change>
+<PR URL>
+
+---
+
+[中文]
+阻塞: <审查者> 提交了 CHANGES_REQUESTED
+原因: <摘要>
+需要操作: <需要改什么>
+<PR URL>
+MSGEOF
 python3 .codex/skills/babysit-pr/scripts/dingtalk_notify.py \
   --title "PR #<n> blocked / PR #<n> 被阻塞" \
-  --text "Blocker: <reviewer> submitted CHANGES_REQUESTED — <summary>. Action needed: <what must change>. <PR URL>
-
-阻塞: <审查者> 提交了 CHANGES_REQUESTED — <摘要>。需要操作: <需要改什么>。<PR URL>"
+  --text-file /tmp/babysit-pr-msg.txt
 ```
 
 The helper sends through the locally configured OpenClaw DingTalk route (channel `dingtalk-connector`, target `079458`). Overridable via env: `BABYSIT_PR_DINGTALK_OPENCLAW_BIN`, `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL`, `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET`. Use `--dry-run` to preview the message without sending.
