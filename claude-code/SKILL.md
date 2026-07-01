@@ -398,7 +398,7 @@ python3 ~/.claude/skills/babysit-pr/scripts/dingtalk_notify.py \
 
 **Transport selection**: the script auto-selects the transport based on env vars:
 - If `BABYSIT_PR_DINGTALK_WEBHOOK_TOKEN` is set → uses DingTalk webhook robot (zero dependency, recommended for open-source users). Optionally set `BABYSIT_PR_DINGTALK_WEBHOOK_SECRET` for HMAC signing.
-- Otherwise → falls back to OpenClaw CLI (channel `dingtalk-connector`, target `079458`). Overridable via `BABYSIT_PR_DINGTALK_OPENCLAW_BIN`, `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL`, `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET`.
+- Otherwise → falls back to OpenClaw CLI (channel `dingtalk-connector`). Requires `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET` to be set (your employee/group ID). Overridable via `BABYSIT_PR_DINGTALK_OPENCLAW_BIN`, `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL`, `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET`.
 
 Both transports use the same `--text-file` message format and bilingual requirement. Use `--dry-run` to preview the message and active transport without sending.
 

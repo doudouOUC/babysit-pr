@@ -164,7 +164,7 @@ For organizations with [OpenClaw](https://openclaw.alibaba-inc.com/) infrastruct
 |----------|---------|-------------|
 | `BABYSIT_PR_DINGTALK_OPENCLAW_BIN` | `openclaw` | OpenClaw binary path |
 | `BABYSIT_PR_DINGTALK_OPENCLAW_CHANNEL` | `dingtalk-connector` | DingTalk channel name |
-| `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET` | `079458` | DingTalk user/group ID |
+| `BABYSIT_PR_DINGTALK_OPENCLAW_TARGET` | *(required)* | DingTalk user/group ID (e.g. your employee ID) |
 
 #### No DingTalk?
 

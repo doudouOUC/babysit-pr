@@ -16,7 +16,19 @@ MODULE_SPEC.loader.exec_module(dingtalk_notify)
 # ---------------------------------------------------------------------------
 
 class OpenClawTransportTest(unittest.TestCase):
-    def test_send_notification_uses_openclaw_channel_by_default(self):
+    def test_openclaw_skips_when_target_not_set(self):
+        result = dingtalk_notify.send_notification(
+            title="PR fix pushed",
+            text="A fix was pushed.",
+            env={},
+            command_runner=lambda cmd, ts: (0, "{}", ""),
+        )
+
+        self.assertEqual(result["status"], "skipped")
+        self.assertEqual(result["transport"], "openclaw")
+        self.assertIn("setup_hint", result)
+
+    def test_openclaw_sends_with_target_set(self):
         calls = []
 
         def fake_run(cmd, timeout_seconds):
@@ -30,28 +42,14 @@ class OpenClawTransportTest(unittest.TestCase):
         result = dingtalk_notify.send_notification(
             title="PR fix pushed",
             text="A fix was pushed.",
-            env={},
+            env={"BABYSIT_PR_DINGTALK_OPENCLAW_TARGET": "012345"},
             command_runner=fake_run,
         )
 
         self.assertEqual(result["status"], "sent")
         self.assertEqual(result["transport"], "openclaw")
         self.assertEqual(calls[0][1], 60)
-        self.assertEqual(
-            calls[0][0],
-            [
-                "openclaw",
-                "message",
-                "send",
-                "--channel",
-                "dingtalk-connector",
-                "--target",
-                "079458",
-                "--message",
-                "PR fix pushed\n\nA fix was pushed.",
-                "--json",
-            ],
-        )
+        self.assertIn("012345", calls[0][0])
 
     def test_send_notification_can_override_openclaw_target(self):
         calls = []
@@ -74,25 +72,21 @@ class OpenClawTransportTest(unittest.TestCase):
         self.assertIn("user-123", calls[0])
 
     def test_send_notification_reports_openclaw_failure(self):
-        self.assertEqual(
-            dingtalk_notify.send_notification(
-                title="PR fix pushed",
-                text="A fix was pushed.",
-                env={},
-                command_runner=lambda cmd, timeout_seconds: (
-                    1,
-                    "stdout detail",
-                    "stderr detail",
-                ),
+        result = dingtalk_notify.send_notification(
+            title="PR fix pushed",
+            text="A fix was pushed.",
+            env={"BABYSIT_PR_DINGTALK_OPENCLAW_TARGET": "012345"},
+            command_runner=lambda cmd, timeout_seconds: (
+                1,
+                "stdout detail",
+                "stderr detail",
             ),
-            {
-                "status": "failed",
-                "transport": "openclaw",
-                "exit_code": 1,
-                "stderr": "stderr detail",
-                "stdout": "stdout detail",
-            },
         )
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["transport"], "openclaw")
+        self.assertEqual(result["exit_code"], 1)
+        self.assertEqual(result["stderr"], "stderr detail")
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +220,7 @@ class DispatchTest(unittest.TestCase):
             text="hello",
             env={
                 "BABYSIT_PR_DINGTALK_WEBHOOK_TOKEN": "mytoken",
-                "BABYSIT_PR_DINGTALK_OPENCLAW_TARGET": "079458",
+                "BABYSIT_PR_DINGTALK_OPENCLAW_TARGET": "012345",
             },
             command_runner=fake_run,
             http_poster=fake_poster,
@@ -243,7 +237,7 @@ class DispatchTest(unittest.TestCase):
         result = dingtalk_notify.send_notification(
             title="test",
             text="hello",
-            env={},
+            env={"BABYSIT_PR_DINGTALK_OPENCLAW_TARGET": "012345"},
             command_runner=fake_run,
         )
 
