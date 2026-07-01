@@ -31,7 +31,7 @@ class DingTalkNotifyTest(unittest.TestCase):
 
         self.assertEqual(result["status"], "sent")
         self.assertEqual(result["transport"], "openclaw")
-        self.assertEqual(calls[0][1], 30)
+        self.assertEqual(calls[0][1], 60)
         self.assertEqual(
             calls[0][0],
             [
