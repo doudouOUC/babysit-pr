@@ -315,15 +315,16 @@ def load_state(path: Path) -> dict[str, Any]:
     """Load prior state, defaulting missing keys for forward-compatibility.
 
     Keys that were added after the initial release (``issue_comments_seen``,
-    ``checks_seen``) default to empty list so the first poll after upgrade
-    surfaces ALL existing items as "new" — which is the right baseline,
-    since the model hasn't seen them yet either.
+    ``checks_seen``, ``poll_count``) default to empty list / 0 so the first
+    poll after upgrade surfaces ALL existing items as "new" — which is the
+    right baseline, since the model hasn't seen them yet either.
     """
     default = {
         "comments_seen": [],
         "reviews_seen": [],
         "issue_comments_seen": [],
         "checks_seen": [],
+        "poll_count": 0,
     }
     if not path.exists():
         return default
@@ -336,13 +337,15 @@ def load_state(path: Path) -> dict[str, Any]:
         return default
 
 
-def save_state(path: Path, current: dict[str, Any]) -> None:
+def save_state(path: Path, current: dict[str, Any], prior: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    poll_count = prior.get("poll_count", 0) + 1
     payload = {
         "comments_seen": [c["id"] for c in current["comments"]],
         "reviews_seen": [r["id"] for r in current["reviews"]],
         "issue_comments_seen": [c["id"] for c in current["issue_comments"]],
         "checks_seen": [c["id"] for c in current["failed_checks"]],
+        "poll_count": poll_count,
         "updated_at": int(time.time()),
         "meta": current["meta"],
     }
@@ -403,7 +406,7 @@ def deterministic_signals(
     return out
 
 
-def render_markdown(repo: str, pr: int, current: dict[str, Any], delta: dict[str, Any]) -> str:
+def render_markdown(repo: str, pr: int, current: dict[str, Any], delta: dict[str, Any], poll_count: int = 0) -> str:
     """Render new items WITHOUT model-level judgment.
 
     The script does NOT classify severity. It only reports:
@@ -425,9 +428,10 @@ def render_markdown(repo: str, pr: int, current: dict[str, Any], delta: dict[str
     signals = deterministic_signals(new_r, meta)
 
     out.append(f"### PR {repo}#{pr}: {meta.get('title', '?')}")
+    mode_tag = "CRITICAL-ONLY" if poll_count > 5 else "FULL"
     out.append(
         f"**State**: {meta.get('state')} | **Mergeable**: {meta.get('mergeable')} | "
-        f"**Draft**: {meta.get('isDraft')}"
+        f"**Draft**: {meta.get('isDraft')} | **Poll**: #{poll_count} ({mode_tag})"
     )
 
     # Surface deterministic blocking signals BEFORE the no-new-items short
@@ -569,13 +573,15 @@ def main() -> int:
     current = fetch_pr_state(repo, pr)
     delta = diff(prior, current)
     if not args.full:
-        save_state(sp, current)
+        save_state(sp, current, prior)
 
     if args.exclude_author:
         excluded = set(args.exclude_author)
         delta["new_reviews"] = [r for r in delta["new_reviews"] if r.get("author") not in excluded]
         delta["new_comments"] = [c for c in delta["new_comments"] if c.get("author") not in excluded]
         delta["new_issue_comments"] = [c for c in delta["new_issue_comments"] if c.get("author") not in excluded]
+
+    poll_count = prior.get("poll_count", 0) + 1 if not args.full else 0
 
     if args.json:
         print(
@@ -584,6 +590,7 @@ def main() -> int:
                     "repo": repo,
                     "pr": pr,
                     "meta": current["meta"],
+                    "poll_count": poll_count,
                     "new_reviews": delta["new_reviews"],
                     "new_issue_comments": delta["new_issue_comments"],
                     "new_line_comments": delta["new_comments"],
@@ -600,7 +607,7 @@ def main() -> int:
             )
         )
     else:
-        print(render_markdown(repo, pr, current, delta))
+        print(render_markdown(repo, pr, current, delta, poll_count))
 
     return 0
 

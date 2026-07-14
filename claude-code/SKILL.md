@@ -257,6 +257,46 @@ Only reply to threads returned by this query (unresolved AND no prior reply from
 
 Skipping steps 2-5 after pushing code is the #1 failure mode of this skill. The push is not the end — the PR hygiene IS the deliverable.
 
+### Progressive scope narrowing (5-round rule)
+
+After 5 polling rounds on the same PR, **restrict autonomous actions to critical-level items only**. This reduces the risk of accumulated errors from repeated autonomous fixes on non-critical feedback.
+
+The script reports `poll_count` in both markdown (header shows `Poll: #N (FULL|CRITICAL-ONLY)`) and JSON output. The model uses this to gate its behavior:
+
+| Poll round | Autonomous action scope |
+| --- | --- |
+| Rounds 1–5 (`poll_count <= 5`) | **Full mode** — handle ALL categories autonomously per the rubric above (Blockers, Disputes, Decision-level, Critical bugs, Nits, CI failures). |
+| Rounds 6+ (`poll_count > 5`) | **Critical-only mode** — only act autonomously on items classified as critical. Everything else is reported but deferred. |
+
+**Items that remain autonomous in critical-only mode (rounds 6+):**
+
+| Category | Action |
+| --- | --- |
+| Merge conflict (`CONFLICTING`) | Auto-resolve via rebase + force-push (same as full mode) |
+| `CHANGES_REQUESTED` review | Surface as blocker; fix the code if the concern is clearly valid |
+| Critical bug / security issue | Fix the code directly |
+| CI failure — PR-code-related | Propose fix (same as full mode) |
+| CI failure — infra/flake | Auto-rerun via `gh run rerun --failed` (same as full mode) |
+
+**Items deferred in critical-only mode (rounds 6+):**
+
+| Category | Action |
+| --- | --- |
+| Nit / style / preference | Report in summary only; do NOT fix or reply |
+| Dispute / pushback | Report to user; do NOT post a reply autonomously |
+| Decision-level suggestion | Report to user; do NOT act |
+| Bot reviewer suggestions (non-critical) | Report only; do NOT auto-reply |
+
+**In the report, when in critical-only mode:**
+- Still echo ALL new items (so the user sees them).
+- Classify all items per the normal rubric (so the user knows what's what).
+- Add a `_Deferred (non-critical, round 6+):_` section listing items you chose NOT to act on, with one-line reason per item.
+- End with: `_Critical-only mode active (round #N). Non-critical items reported but not acted on. Say "handle all" to override for this poll._`
+
+**User override:** If the user explicitly says "handle all", "process everything", or "full mode" during a critical-only poll, treat that single poll as full mode. The next poll reverts to critical-only.
+
+**Reset:** `--reset-state` resets `poll_count` to 0, re-entering full mode for 5 rounds. Use when the PR has undergone significant changes (force-push, major rework) and a fresh full-mode pass is warranted.
+
 ### Incremental-first polling (default)
 
 **Default to incremental mode** (no `--full` flag). On the first invocation for a PR (no state file exists), the incremental mode naturally reports ALL items as "new" — this IS the initial full scan, and it saves state so subsequent polls only report deltas.
@@ -483,10 +523,13 @@ State lives at `~/.claude/state/babysit-pr/<owner-repo>-<pr>.json`. Schema:
   "reviews_seen": ["PRR_kw...=", ...],
   "issue_comments_seen": [9876543210, ...],
   "checks_seen": [54321098, 54321099, ...],
+  "poll_count": 3,
   "updated_at": 1779692575,
   "meta": { "state": "OPEN", "title": "...", "mergeable": "MERGEABLE", "isDraft": false, "head_sha": "abc123..." }
 }
 ```
+
+`poll_count` tracks the number of incremental polls completed. Used by the "Progressive scope narrowing" rule — after 5 rounds the model switches to critical-only autonomous mode. Reset via `--reset-state`.
 
 `issue_comments_seen` was added when the skill was extended to top-level comments; `checks_seen` was added when CI polling landed. Older state files without these keys are forward-compatible — the script defaults missing keys to `[]`, so the first poll after upgrade reports all existing items as new.
 
