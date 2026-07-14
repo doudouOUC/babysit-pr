@@ -573,11 +573,16 @@ def main() -> int:
     current = fetch_pr_state(repo, pr)
     delta = diff(prior, current)
     if not args.full:
-        had_new_items = bool(
-            delta["new_comments"] or delta["new_reviews"]
-            or delta["new_issue_comments"] or delta["new_failed_checks"]
+        def is_human(item):
+            author = item.get("author") or ""
+            return not (author.endswith("[bot]") or author == "copilot-pull-request-reviewer")
+
+        had_human_activity = bool(
+            [c for c in delta["new_comments"] if is_human(c)]
+            or [r for r in delta["new_reviews"] if is_human(r)]
+            or [c for c in delta["new_issue_comments"] if is_human(c)]
         )
-        save_state(sp, current, prior, had_new_items)
+        save_state(sp, current, prior, had_human_activity)
 
     if args.exclude_author:
         excluded = set(args.exclude_author)
@@ -588,7 +593,7 @@ def main() -> int:
     if args.full:
         poll_count = 0
     else:
-        poll_count = prior.get("poll_count", 0) + (1 if had_new_items else 0)
+        poll_count = prior.get("poll_count", 0) + (1 if had_human_activity else 0)
 
     if args.json:
         print(

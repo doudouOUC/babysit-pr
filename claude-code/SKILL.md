@@ -261,7 +261,7 @@ Skipping steps 2-5 after pushing code is the #1 failure mode of this skill. The 
 
 After 5 **effective** polling rounds on the same PR, **restrict autonomous actions to critical-level items only**. This reduces the risk of accumulated errors from repeated autonomous fixes on non-critical feedback.
 
-An "effective round" is a poll that has new items (comments, reviews, or CI failures). Empty polls (no new activity) do NOT increment the counter — idle polling shouldn't eat into the full-mode budget.
+An "effective round" is a poll that has new **human-authored** items (comments or reviews from real reviewers). Bot-only activity (logins ending in `[bot]` or `copilot-pull-request-reviewer`) and CI-only polls do NOT increment the counter — only human review feedback carries the risk that warrants scope narrowing.
 
 The script reports `poll_count` in both markdown (header shows `Poll: #N (FULL|CRITICAL-ONLY)`) and JSON output. The model uses this to gate its behavior:
 
@@ -531,7 +531,7 @@ State lives at `~/.claude/state/babysit-pr/<owner-repo>-<pr>.json`. Schema:
 }
 ```
 
-`poll_count` tracks the number of effective polls (polls with new items). Used by the "Progressive scope narrowing" rule — after 5 effective rounds the model switches to critical-only autonomous mode. Empty polls do not increment. Reset via `--reset-state`.
+`poll_count` tracks the number of effective polls (polls with new human-authored comments/reviews). Used by the "Progressive scope narrowing" rule — after 5 effective rounds the model switches to critical-only autonomous mode. Bot-only activity and CI-only polls do not increment. Reset via `--reset-state`.
 
 `issue_comments_seen` was added when the skill was extended to top-level comments; `checks_seen` was added when CI polling landed. Older state files without these keys are forward-compatible — the script defaults missing keys to `[]`, so the first poll after upgrade reports all existing items as new.
 
