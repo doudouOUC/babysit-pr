@@ -337,9 +337,9 @@ def load_state(path: Path) -> dict[str, Any]:
         return default
 
 
-def save_state(path: Path, current: dict[str, Any], prior: dict[str, Any]) -> None:
+def save_state(path: Path, current: dict[str, Any], prior: dict[str, Any], had_new_items: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    poll_count = prior.get("poll_count", 0) + 1
+    poll_count = prior.get("poll_count", 0) + (1 if had_new_items else 0)
     payload = {
         "comments_seen": [c["id"] for c in current["comments"]],
         "reviews_seen": [r["id"] for r in current["reviews"]],
@@ -573,7 +573,11 @@ def main() -> int:
     current = fetch_pr_state(repo, pr)
     delta = diff(prior, current)
     if not args.full:
-        save_state(sp, current, prior)
+        had_new_items = bool(
+            delta["new_comments"] or delta["new_reviews"]
+            or delta["new_issue_comments"] or delta["new_failed_checks"]
+        )
+        save_state(sp, current, prior, had_new_items)
 
     if args.exclude_author:
         excluded = set(args.exclude_author)
@@ -581,7 +585,10 @@ def main() -> int:
         delta["new_comments"] = [c for c in delta["new_comments"] if c.get("author") not in excluded]
         delta["new_issue_comments"] = [c for c in delta["new_issue_comments"] if c.get("author") not in excluded]
 
-    poll_count = prior.get("poll_count", 0) + 1 if not args.full else 0
+    if args.full:
+        poll_count = 0
+    else:
+        poll_count = prior.get("poll_count", 0) + (1 if had_new_items else 0)
 
     if args.json:
         print(
