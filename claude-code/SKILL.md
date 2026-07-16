@@ -282,18 +282,34 @@ The script reports `poll_count` in both markdown (header shows `Poll: #N (FULL|C
 
 **Items deferred in critical-only mode (rounds 6+):**
 
+Non-critical items are NOT silently ignored — they are **replied to and resolved** so the reviewer knows they were seen and consciously not adopted. This keeps the PR thread clean and prevents stale unresolved threads from blocking approval.
+
 | Category | Action |
 | --- | --- |
-| Nit / style / preference | Report in summary only; do NOT fix or reply |
-| Dispute / pushback | Report to user; do NOT post a reply autonomously |
-| Decision-level suggestion | Report to user; do NOT act |
-| Bot reviewer suggestions (non-critical) | Report only; do NOT auto-reply |
+| Nit / style / preference | Do NOT fix. Reply acknowledging the suggestion and explaining why it's not being adopted (e.g., "Noted — not adopting in this PR to keep scope tight."). Resolve the thread. |
+| Dispute / pushback | Do NOT fix or post a substantive counter-argument. Reply briefly deferring (e.g., "Acknowledged — deferring to PR author for this design decision."). Resolve the thread. Report to user for awareness. |
+| Decision-level suggestion | Do NOT act. Reply deferring (e.g., "This needs PR author input — deferring."). Resolve the thread. Report to user. |
+| Bot reviewer suggestions (non-critical) | Reply with brief reason for not taking (same as bot auto-reply in full mode). Resolve the thread. |
+
+**How to reply and resolve deferred threads:**
+1. For each deferred inline comment thread: `gh api repos/<owner>/<repo>/pulls/<pr>/comments -f body="..." -F in_reply_to=<comment_id>`
+2. For each deferred top-level comment: `gh api repos/<owner>/<repo>/issues/<pr>/comments -f body="..."`
+3. After replying, resolve each thread via GraphQL:
+   ```bash
+   gh api graphql -f query='mutation { resolveReviewThread(input:{threadId:"<id>"}) { thread { isResolved } } }'
+   ```
+4. Report resolved count in the summary: "Deferred and resolved X non-critical threads."
+
+**Reply format for deferred items (keep terse):**
+- Lead with acknowledgment: `Noted.` / `Acknowledged.`
+- One sentence explaining why not adopted: scope control / PR author decision / style preference / not critical for this change.
+- No hedging, no apology, no promise to follow up unless genuinely planned.
 
 **In the report, when in critical-only mode:**
 - Still echo ALL new items (so the user sees them).
 - Classify all items per the normal rubric (so the user knows what's what).
-- Add a `_Deferred (non-critical, round 6+):_` section listing items you chose NOT to act on, with one-line reason per item.
-- End with: `_Critical-only mode active (round #N). Non-critical items reported but not acted on. Say "handle all" to override for this poll._`
+- Add a `_Deferred and resolved (non-critical, round 6+):_` section listing items you replied to and resolved, with one-line summary of each reply.
+- End with: `_Critical-only mode active (round #N). Non-critical items replied to and resolved. Say "handle all" to override for this poll._`
 
 **User override:** If the user explicitly says "handle all", "process everything", or "full mode" during a critical-only poll, treat that single poll as full mode. The next poll reverts to critical-only.
 

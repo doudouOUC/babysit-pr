@@ -27,9 +27,9 @@ Accept any of the following:
 2. Run the watcher script to snapshot PR/review/CI state (or consume each streamed snapshot from `--watch`).
 3. Inspect the `actions` list in the JSON response.
 4. If `diagnose_ci_failure` is present, inspect failed run logs and classify the failure.
-5. If the failure is likely caused by the current branch, patch code locally, commit, and push. Do not patch random flaky tests, CI infrastructure, dependency outages, runner issues, or other failures that are unrelated to the branch.
+5. If the failure is likely caused by the current branch, patch code locally and include it in the current fix batch. Validate and push the batch using "Verification Before Push" below. Do not patch random flaky tests, CI infrastructure, dependency outages, runner issues, or other failures that are unrelated to the branch.
 6. If `process_review_comment` is present, inspect surfaced review items and apply the **Autonomous comment handling** rubric below to decide how to act on each one.
-7. If a review item is actionable, patch code locally, commit, push, reply to the thread, resolve it, and post a top-level summary comment — see the full post-fix obligations in "Review Comment Handling" below.
+7. If a review item is actionable, patch code locally and include it in the current fix batch. After all eligible feedback for the current SHA has been handled, validate, commit, verify, and push once, then reply to the thread, resolve it, and post a top-level summary comment — see the full post-fix obligations in "Review Comment Handling" below.
 8. For bot-authored comments, auto-reply without user approval per the bot policy below. For human comments, form your own judgment (agree / partially agree / disagree / uncertain) and act accordingly — only defer to the user when genuinely uncertain.
 9. If the failure is likely flaky/unrelated and `retry_failed_checks` is present, rerun failed jobs with `--retry-failed-now`.
 10. If both actionable review feedback and `retry_failed_checks` are present, prioritize review feedback first; a new commit will retrigger CI, so avoid rerunning flaky checks on the old SHA unless you intentionally defer the review change.
@@ -44,25 +44,25 @@ Accept any of the following:
 ### One-shot snapshot
 
 ```bash
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --once
+python3 ~/.codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --once
 ```
 
 ### Continuous watch (JSONL)
 
 ```bash
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --watch
+python3 ~/.codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --watch
 ```
 
 ### Trigger flaky retry cycle (only when watcher indicates)
 
 ```bash
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --retry-failed-now
+python3 ~/.codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --retry-failed-now
 ```
 
 ### Explicit PR target
 
 ```bash
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr <number-or-url> --once
+python3 ~/.codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr <number-or-url> --once
 ```
 
 ## CI Failure Classification
@@ -83,7 +83,7 @@ Do not attempt to fix flaky/unrelated failures by changing tests, build scripts,
 
 If classification is ambiguous, perform one manual diagnosis attempt before choosing rerun.
 
-Read `.codex/skills/babysit-pr/references/heuristics.md` for a concise checklist.
+Read `~/.codex/skills/babysit-pr/references/heuristics.md` for a concise checklist.
 
 ## Review Comment Handling
 
@@ -165,7 +165,7 @@ Only reply to threads returned by this query (unresolved AND no prior reply from
 
 After deciding, execute these steps IN ORDER for every fix commit:
 
-1. `git add && git commit && git push` — push the fix commit (use `codex: address PR review feedback (#<n>)` message).
+1. Finish the current fix batch, run targeted validation, commit it, run the repository-required final gate once, and push it — follow "Verification Before Push" below and use the `codex: address PR review feedback (#<n>)` message.
 2. **Reply to EACH addressed thread on GitHub** — use `gh api repos/<owner>/<repo>/pulls/<pr>/comments -f body="..." -F in_reply_to=<comment_id>` for inline threads. Terse: "Fixed in <sha>." / "Not taking — <reason>." / "Deferring — <reason>."
 3. **Post a top-level PR summary comment** — table of all actions (fixed / pushed back / deferred) with commit SHA.
 4. **Resolve ALL replied threads** — query all unresolved threads via GraphQL, then batch-resolve every thread that has been replied to.
@@ -234,7 +234,7 @@ Commit: <sha>
 提交: <sha>
 <PR URL>
 MSGEOF
-python3 .codex/skills/babysit-pr/scripts/dingtalk_notify.py \
+python3 ~/.codex/skills/babysit-pr/scripts/dingtalk_notify.py \
   --title "PR #<n> fix pushed / PR #<n> 修复已推送" \
   --text-file /tmp/babysit-pr-msg.txt
 ```
@@ -268,7 +268,7 @@ Recommended action: <what the model suggests>
 建议操作: <模型的建议>
 <PR URL>
 MSGEOF
-python3 .codex/skills/babysit-pr/scripts/dingtalk_notify.py \
+python3 ~/.codex/skills/babysit-pr/scripts/dingtalk_notify.py \
   --title "PR #<n> needs your decision / PR #<n> 需要你的决策" \
   --text-file /tmp/babysit-pr-msg.txt
 ```
@@ -290,7 +290,7 @@ Action needed: <what must change>
 需要操作: <需要改什么>
 <PR URL>
 MSGEOF
-python3 .codex/skills/babysit-pr/scripts/dingtalk_notify.py \
+python3 ~/.codex/skills/babysit-pr/scripts/dingtalk_notify.py \
   --title "PR #<n> blocked / PR #<n> 被阻塞" \
   --text-file /tmp/babysit-pr-msg.txt
 ```
@@ -329,7 +329,7 @@ After posting, mention in your user-facing report that you replied so the user c
 - Avoid destructive git commands.
 - Do not switch branches unless necessary to recover context.
 - Before editing, check for unrelated uncommitted changes. If present, stop and ask the user.
-- After each successful fix, commit and `git push`, then re-run the watcher.
+- Batch all eligible fixes for the current SHA/review round, then validate, commit, run the final gate once, and `git push`. Do not create verification cycles for intermediate commits that will not be pushed.
 - If you interrupted a live `--watch` session to make the fix, restart `--watch` immediately after the push in the same turn.
 - Do not run multiple concurrent `--watch` processes for the same PR/state file; keep one watcher session active and reuse it until it stops or you intentionally restart it.
 - A push is not a terminal outcome; continue the monitoring loop unless a strict stop condition is met.
@@ -339,6 +339,17 @@ Commit message defaults:
 - `codex: fix CI failure on PR #<n>`
 - `codex: address PR review feedback (#<n>)`
 
+## Verification Before Push
+
+Use the target repository's instructions as the source of truth. Repository `AGENTS.md` files, contribution guides, and explicit user or automation instructions override this section.
+
+1. While editing, run the smallest checks that give useful feedback for the changed area: affected tests plus relevant lint, format, typecheck, or build checks. Batch all eligible fixes for the current SHA/review round before the final commit.
+2. Do not run a broad final gate after every edit or intermediate commit. Once the batch is complete, commit it, confirm the working tree is clean and the commit contains no unrelated files, then run the repository-required final gate exactly once immediately before pushing.
+3. If the repository mandates an exact command, run that command. For example, when a repository requires `npm run verify:pr` after the final commit, run it once for the commit being pushed; do not also run all of its constituent full-suite commands unless they are needed to diagnose a failure or are separately required.
+4. If no exact final gate is mandated, prefer the repository's documented changed-scope or auto-profile gate. If none exists, use proportional checks for the touched packages instead of inventing a full-repository gate.
+5. A successful gate applies only to the exact commit it checked. If a gate failure leads to another code change or commit, use focused checks while repairing it, then rerun the required final gate once for the new commit. Documentation-only changes after a successful gate may skip a rerun only when the repository explicitly permits that exception.
+6. Remote CI does not replace a required local gate, but local verification should not duplicate equivalent broad work without a repository rule or a concrete diagnostic reason.
+
 ## Monitoring Loop Pattern
 Use this loop in a live Codex session:
 
@@ -347,8 +358,8 @@ Use this loop in a live Codex session:
 3. First check whether the PR is now merged or otherwise closed; if so, report that terminal state and stop polling immediately.
 4. Check CI summary, new review items, and mergeability/conflict status.
 5. Diagnose CI failures and classify branch-related vs flaky/unrelated. If the overall run is still pending but `failed_jobs` already includes a failed job, fetch that job's logs and diagnose immediately instead of waiting for the whole workflow run to finish. Patch only when the failure is branch-related.
-6. For each surfaced review item from another author, apply the autonomous comment handling rubric: read the code, verify the claim, decide (agree / partially agree / disagree / uncertain). If actionable, patch/commit/push, reply to threads, post summary comment, and resolve threads per the post-fix obligations. If uncertain, surface to the user. For bot comments, auto-reply per the bot policy. Run the dedup guard before every reply.
-7. Process actionable review comments before flaky reruns when both are present; if a review fix requires a commit, push it and skip rerunning failed checks on the old SHA.
+6. For each surfaced review item from another author, apply the autonomous comment handling rubric: read the code, verify the claim, decide (agree / partially agree / disagree / uncertain), and collect actionable changes into one fix batch for the current SHA. After the batch is complete, validate, commit, run the final gate once, push, reply to threads, post the summary comment, and resolve threads per the post-fix obligations. If uncertain, surface to the user. For bot comments, auto-reply per the bot policy. Run the dedup guard before every reply.
+7. Process actionable review comments before flaky reruns when both are present; if the fix batch will create a new commit, finish and push that batch and skip rerunning failed checks on the old SHA.
 8. Retry failed checks only when `retry_failed_checks` is present and you are not about to replace the current SHA with a review/CI fix commit. Do not make code changes for unrelated flakes or infrastructure failures just to get CI green.
 9. If you pushed a commit, complete ALL post-fix obligations (reply threads → summary comment → resolve threads → report counts) before continuing. Report the action briefly and continue polling (do not stop). Only defer to the user when genuinely uncertain about a comment — not as a default.
 10. After a review-fix push, proactively restart continuous monitoring (`--watch`) in the same turn unless a strict stop condition has already been reached.
@@ -404,5 +415,5 @@ Provide concise progress updates while monitoring and a final summary that inclu
 
 ## References
 
-- Heuristics and decision tree: `.codex/skills/babysit-pr/references/heuristics.md`
-- GitHub CLI/API details used by the watcher: `.codex/skills/babysit-pr/references/github-api-notes.md`
+- Heuristics and decision tree: `~/.codex/skills/babysit-pr/references/heuristics.md`
+- GitHub CLI/API details used by the watcher: `~/.codex/skills/babysit-pr/references/github-api-notes.md`

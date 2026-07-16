@@ -1,7 +1,7 @@
 .PHONY: install-claude-code install-codex test clean
 
 CLAUDE_CODE_TARGET := $(HOME)/.claude/skills/babysit-pr
-CODEX_TARGET := .codex/skills/babysit-pr
+CODEX_TARGET := $(HOME)/.codex/skills/babysit-pr
 
 install-claude-code:
 	@echo "Installing babysit-pr skill for Claude Code..."

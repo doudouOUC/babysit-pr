@@ -7,7 +7,7 @@ Autonomous PR babysitter skill for AI coding agents. Polls GitHub PRs for review
 | Platform | Polling Model | Install Target |
 |----------|--------------|----------------|
 | **Claude Code** | Single-invocation poll + `/loop` cron scheduling | `~/.claude/skills/babysit-pr/` |
-| **Codex** | Continuous `--watch` mode (JSONL streaming) | `.codex/skills/babysit-pr/` |
+| **Codex** | Continuous `--watch` mode (JSONL streaming) | `~/.codex/skills/babysit-pr/` |
 
 Both platforms share the same core behaviors:
 
@@ -92,10 +92,10 @@ babysit-pr/
 
 ```bash
 # One-shot snapshot
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr 4432 --once
+python3 ~/.codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr 4432 --once
 
 # Continuous watch
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr 4432 --watch
+python3 ~/.codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr 4432 --watch
 ```
 
 ## Configuration
